@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Nickel Demo</title>
+<style>
+  body { margin:0; overflow:hidden; background:#111; }
+</style>
+</head>
+<body>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.158.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js";
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(3,2,3);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(3,5,3);
+scene.add(light);
+
+// simple test: a cube (no physics, just to verify)
+const geo = new THREE.BoxGeometry();
+const mat = new THREE.MeshStandardMaterial({color:0x00ffcc});
+const cube = new THREE.Mesh(geo, mat);
+scene.add(cube);
+
+function animate(){
+  requestAnimationFrame(animate);
+  cube.rotation.y += 0.01;
+  renderer.render(scene, camera);
+}
+animate();
+
+</script>
+
+</body>
+</html>
