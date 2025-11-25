@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Breakable Nickel</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #111; }
+</style>
+</head>
+<body>
+
+<script type="module">
+
+import * as THREE from "https://unpkg.com/three@0.158.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.158.0/examples/jsm/controls/OrbitControls.js";
+import * as CANNON from "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js";
+
+// --- SCENE ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(3, 2, 3);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+
+// Light
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(3, 5, 3);
+scene.add(light);
+
+// --- PHYSICS WORLD ---
+const world = new CANNON.World({
+  gravity: new CANNON.Vec3(0, -9.82, 0),
+});
+
+// Nickel (cylinder)
+const radius = 1;
+const height = 0.2;
+
+// Three.js mesh
+const nickelGeo = new THREE.CylinderGeometry(radius, radius, height, 64);
+const nickelMat = new THREE.MeshStandardMaterial({
+  color: 0xcccccc,
+  metalness: 1,
+  roughness: 0.2
+});
+const nickelMesh = new THREE.Mesh(nickelGeo, nickelMat);
+scene.add(nickelMesh);
+
+// Physics body
+const nickelShape = new CANNON.Cylinder(radius, radius, height, 32);
+const nickelBody = new CANNON.Body({ mass: 1 });
+nickelBody.addShape(nickelShape);
+nickelBody.position.set(0, 1, 0);
+world.addBody(nickelBody);
+
+// Ground
+const groundBody = new CANNON.Body({
+  mass: 0,
+  shape: new CANNON.Plane()
+});
+world.addBody(groundBody);
+
+const groundGeo = new THREE.PlaneGeometry(20, 20);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+groundMesh.rotation.x = -Math.PI / 2;
+scene.add(groundMesh);
+
+// Update physics
+function updatePhysics() {
+  world.step(1 / 60);
+  nickelMesh.position.copy(nickelBody.position);
+  nickelMesh.quaternion.copy(nickelBody.quaternion);
+}
+
+let pieces = [];
+
+function breakNickel() {
+  scene.remove(nickelMesh);
+  world.removeBody(nickelBody);
+
+  for (let i = 0; i < 12; i++) {
+    const geo = new THREE.BoxGeometry(0.4, 0.4, 0.1);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xcccccc,
+      metalness: 1
+    });
+
+    const piece = new THREE.Mesh(geo, mat);
+
+    piece.position.set(
+      (Math.random() - 0.5) * 1.5,
+      1 + Math.random() * 0.5,
+      (Math.random() - 0.5) * 1.5
+    );
+
+    scene.add(piece);
+
+    const shape = new CANNON.Box(new CANNON.Vec3(0.2, 0.2, 0.05));
+    const body = new CANNON.Body({ mass: 0.2 });
+    body.addShape(shape);
+    body.position.set(piece.position.x, piece.position.y, piece.position.z);
+
+    body.applyImpulse(new CANNON.Vec3(
+      (Math.random() - 0.5) * 5,
+      Math.random() * 4,
+      (Math.random() - 0.5) * 5
+    ));
+
+    world.addBody(body);
+    piece.body = body;
+
+    piece.update = () => {
+      piece.position.copy(body.position);
+      piece.quaternion.copy(body.quaternion);
+    };
+
+    pieces.push(piece);
+  }
+}
+
+window.addEventListener("click", () => {
+  if (pieces.length === 0) breakNickel();
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  updatePhysics();
+  pieces.forEach(p => p.update());
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// Resize fix
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+</script>
+</body>
+</html>
